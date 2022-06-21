@@ -1,0 +1,71 @@
+cargo build --release
+
+
+#[no_mangle]
+ extern "C" fn map_xy_to_lat_lon(a:f64,f:f64, x:f64, y:f64, lambda0:f64,philambda:&mut WGS84Corr)
+ {
+    let b=(1.0-f)*a;
+    let e=(1.0-(b/a).powf(2.0)).sqrt();
+    //let e2_=2.0*f-f*f;
+    let e1=(1.0-b/a)/(1.0+b/a);
+      //k0 = 0.9996
+    let bf_=foot_point_latitude(a,f,y);
+    let nf_=a.powf(2.0)/b/(1.0+e1.powf(2.0)*bf_.powf(2.0)).sqrt();
+    let rf_=a*(1.0-e.powf(2.0))/(1.0-(e*bf_.sin()).powf(2.0)).powf(1.5);
+    //let mf_=y;
+    //let fai_=mf_/(a*(1.0-e2_/4.0-3.0*e2_.powf(2.0)-5.0/256.0*e2_.powf(3.0)));
+    let tf_=bf_.tan().powf(2.0);
+    let cf_=(e1*bf_.cos()).powf(2.0);
+    let d_=x/nf_;
+
+      philambda.lat =bf_-nf_*bf_.tan()/rf_*(d_.powf(2.0)/2.0-(5.0+3.0*tf_+10.0*cf_-4.0*cf_.powf(2.0)-9.0*e1.powf(2.0))*d_.powf(4.0)/24.0+
+        (61.0+90.0*tf_+298.0*cf_+45.0*tf_.powf(2.0)-252.0*e1.powf(2.0)-3.0*cf_.powf(2.0)  )*d_.powf(6.0)/720.0);
+      let lon_tmp=1.0/bf_.cos()*(d_-(1.0+2.0*tf_+cf_)*d_.powf(3.0)/6.0+(5.0-2.0*cf_+28.0*tf_-3.0*cf_.powf(2.0)+
+        8.0*e1.powf(2.0)+24.0*tf_.powf(2.0))*d_.powf(5.0)/120.0  );
+      philambda.log = lambda0 + lon_tmp;
+      
+ }
+
+ #[no_mangle]
+ extern "C" fn map_lat_lon_to_xy(a:f64,f:f64,phi:f64,lambda:f64,lambda0:f64,xy:&mut UTMCoor)
+ {
+   let b=(1.0-f)*a;
+   let e=(1.0-(b/a).powf(2.0)).sqrt();
+   let e2_=2.0*f-f*f;
+   let e1=((a/b).powf(2.0)-1.0).sqrt();
+
+   let m_=a*((1.0-e2_/4.0-3.0/64.0*e2_.powf(2.0)-5.0/256.0*e2_.powf(3.0))*phi-
+     (3.0*e2_/8.0+3.0/32.0*e2_.powf(2.0)+45.0/1024.0*e2_.powf(3.0))*(2.0*phi).sin()+
+     (15.0/256.0*e2_.powf(2.0)+45.0/1024.0*e2_.powf(3.0))*(4.0*phi).sin()-35.0/3072.0*e2_.powf(3.0)*(6.0*phi).sin() );
+   //let m_=arc_length_of_meridian_u(a,f,phi);
+
+   let n_=a/(1.0-(e*phi.sin()).powf(2.0)).sqrt();
+   let aa_=(lambda-lambda0)*phi.cos()/3600.0;
+   let t_=phi.tan().powf(2.0);
+   let c_=(e1*phi.cos()).powf(2.0);
+    xy.y=m_+n_*phi.tan()*(aa_.powf(2.0)/2.0+(5.0-t_+9.0*c_+4.0*c_.powf(2.0))*aa_.powf(4.0)/24.0)+
+   (61.0-58.0*t_+t_.powf(2.0)+600.0*c_-330.0*e1.powf(2.0))*aa_.powf(6.0)/720.0;
+    xy.x=n_*(aa_+(1.0-t_+c_)*aa_.powf(3.0)/6.0+(5.0-18.0*t_+t_.powf(2.0)+72.0*c_-58.0*e1.powf(2.0))*aa_.powf(5.0)/120.0);
+    xy.x=xy.x*1000.0;
+    xy.y=xy.y*1000.0
+
+ }
+
+
+设置环境变量 RUSTUP_DIST_SERVER （用于更新 toolchain）：
+set RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static
+
+RUSTUP_UPDATE_ROOT （用于更新 rustup）：
+set RUSTUP_UPDATE_ROOT=https://mirrors.ustc.edu.cn/rust-static/rustup
+我猜如果以后cargo下载包慢时，也需要设置这两个参数，所以最好加到环境变量里去。
+
+字节跳动
+set RUSTUP_DIST_SERVER=https://rsproxy.cn
+set RUSTUP_UPDATE_ROOT=https://rsproxy.cn/rustup
+
+作者：万州客
+链接：https://www.jianshu.com/p/0f12df44cc1e
+registry = "https://rsproxy.cn/crates.io-index"
+
+[registries.rsproxy]
+index = "https://rsproxy.cn/crates.io-index"
